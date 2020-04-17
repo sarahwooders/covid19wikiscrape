@@ -48,13 +48,16 @@ def scrape_tables_from_url(url, output_dir, file_prefix, timeout=3, verbose=Fals
             out = open(_add_unique_postfix(filename), "w")
             if verbose:
                 cprint("created file " + filename, 'cyan')
-            print("'caption'", end = ",", file = out)
-            print("\'" + str(t.find('caption')) + "\'", file = out)
+            caption = t.find('caption')
+            if caption and len(caption) > 0:
+                print("'caption'", end = ",", file = out)
+                print("\'" + str(caption) + "\'", file = out)
             rows = t.find_all('tr')
             for r in rows:
                 # break when we see class="sortbottom" in a <tr> tag
                 if r.has_attr('class') and 'sortbottom' in r['class']:
                     break
+                headers = r.find_all(['th'])
                 thtd = r.find_all(['th','td'])
                 txt = str([i.text.rstrip() for i in thtd])
                 print(txt.lstrip('[').rstrip(']'), file = out)
