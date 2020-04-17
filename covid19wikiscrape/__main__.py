@@ -26,7 +26,8 @@ from fetch_countries import fetch_countries
 
 def main(argv):
     # parse command line
-    parser = argparse.ArgumentParser(description="scrape national wikipedia data on coronavirus")
+    parser = argparse.ArgumentParser(description="scrape national wikipedia data on coronavirus",
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-z', '--tgz', action="store_true", default=False,
                         help="compress result directory to a single tgz file")
     parser.add_argument('-t', '--timeout', action="store", default = 10, type=float,
