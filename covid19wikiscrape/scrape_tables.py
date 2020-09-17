@@ -3,6 +3,8 @@ from requests.exceptions import Timeout
 from bs4 import BeautifulSoup
 import os
 from slugify import slugify
+import ray
+
 
 def _add_unique_postfix(fn):
     # __author__ = 'Denis Barmenkov <denis.barmenkov@gmail.com>'

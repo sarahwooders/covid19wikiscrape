@@ -1,3 +1,7 @@
+import ray
+ray.init()
+
+
 import argparse
 from slugify import slugify
 from datetime import datetime
@@ -10,9 +14,11 @@ import sys
 import re
 from itertools import repeat
 
-from fetch_countries import fetch_countries
 
-# A script to scrape national coronavirus pandemic data from wikipedia.
+from fetch_countries import fetch_countries
+import sys
+sys.path.insert(1, '/Users/wooders/Documents/repos/cloudburst')
+from cloudburst.client.client import CloudburstConnection      # A script to scrape national coronavirus pandemic data from wikipedia.
 # This script simply fetches all the available tables. It makes no effort
 # to clean or filter the data. 
 
@@ -42,13 +48,13 @@ def main(argv):
                         help="print more info")
     parser.add_argument('-j', '--threads', action="store", default=128, type=int,
                         help="parallel download threads")
+    parser.add_argument('-r', '--runner', action="store", 
+                        help="how to run parallel scraping")
     args = parser.parse_args(argv)
 
     # create output directory
-    outdir = slugify("output-" + datetime.now(tz=None).strftime("%d-%b-%Y (%H:%M:%S.%f)"),
-                     replacements=[['%','_percent_'],[':','-']])
+    outdir = slugify("output-" + datetime.now(tz=None).strftime("%d-%b-%Y (%H:%M:%S.%f)"), replacements=[['%','_percent_'],[':','-']])
     os.mkdir(outdir)
-
 
     # fetch list of country pages in parallel
     # we get the country list from the table in args.listurl
@@ -64,12 +70,41 @@ def main(argv):
     # in order to parallelize, need to convert soup back to strings
     rows = [str(tr) for tr in rows]
 
-    pool = Pool(args.threads)
-    # starmap only takes two args, so we zip the rows with the constant args into pairs
+
     poolargs = [outdir, args.wikiprefix, args.timeout, args.verbose]
-    results = pool.starmap(fetch_countries, zip(rows, repeat(poolargs)))
+    if args.runner == 'multiprocessing':
+
+        pool = Pool(args.threads)
+        # starmap only takes two args, so we zip the rows with the constant args into pairs
+        results = pool.starmap(fetch_countries, zip(rows, repeat(poolargs)))
+
+    elif args.runner == 'cloudburst':
+        os.chdir('/Users/wooders/Documents/repos/cloudburst')
+
+        def f(x):
+            return fetch_countries(x, poolargs)
+
+        local_cloud = CloudburstConnection('127.0.0.1', '127.0.0.1', local=True)
+
+        # Call with function
+        cloud_fetch_countries = local_cloud.register(f, 'fetch_countries')
+        calls = [cloud_fetch_countries(row) for row in rows]
+        results = [call.get() for call in calls]
+
+        # Call with DAG
+        local_cloud.register_dag('dag', ['fetch_countries'], [])
+        results = [local_cloud.call_dag('dag', {'fetch_countries': row}) for row in rows]
+
+    elif args.runner == 'ray':
+        print("Running ray")
+        futures = [fetch_countries.remote(row, poolargs) for row in rows]
+        results = ray.get(futures)
+
+    else:
+        raise ValueError("No runner option")
     # remove non-errors
     errors = list(filter(None, results))
+
 
     if args.tgz:
         outfile = outdir + '.tgz'
