@@ -78,20 +78,24 @@ def main(argv):
         # starmap only takes two args, so we zip the rows with the constant args into pairs
         results = pool.starmap(fetch_countries, zip(rows, repeat(poolargs)))
 
-    elif args.runner == 'cloudburst':
-        os.chdir('/Users/wooders/Documents/repos/cloudburst')
+    elif args.runner == 'cloudburst': 
+        print("Running Cloudburst")
 
+        # Need to change to cloudburst directory
+        os.chdir('/Users/wooders/Documents/repos/cloudburst')
+    
+        # Not sure how to do multiple inputs...? 
         def f(x):
             return fetch_countries(x, poolargs)
 
         local_cloud = CloudburstConnection('127.0.0.1', '127.0.0.1', local=True)
 
-        # Call with function
+        # Call with function - Get stuck during get()
         cloud_fetch_countries = local_cloud.register(f, 'fetch_countries')
         calls = [cloud_fetch_countries(row) for row in rows]
         results = [call.get() for call in calls]
 
-        # Call with DAG
+        # Call with DAG - Returns error in fetch 
         local_cloud.register_dag('dag', ['fetch_countries'], [])
         results = [local_cloud.call_dag('dag', {'fetch_countries': row}) for row in rows]
 
